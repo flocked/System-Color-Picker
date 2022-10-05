@@ -33,7 +33,6 @@ private struct RecentlyPickedColorsButton: View {
 					recentlyPickedColors = []
 				}
 			}
-				// TODO: Remove when targeting macOS 13 where it's fixed.
 				// Without, it becomes disabled. (macOS 12.4)
 				.buttonStyle(.automatic)
 		} label: {
@@ -87,7 +86,7 @@ private struct BarView: View {
 			// Cannot do this as the `Menu` buttons don't respect it. (macOS 12.0.1)
 			// https://github.com/feedback-assistant/reports/issues/249
 //			.font(.title3)
-			.background {
+			.background2 {
 				RoundedRectangle(cornerRadius: 6, style: .continuous)
 					.fill(Color.black.opacity(colorScheme == .dark ? 0.17 : 0.05))
 			}
@@ -119,7 +118,6 @@ private struct BarView: View {
 				.labelStyle(.iconOnly)
 //				.padding(8) // Has no effect. (macOS 12.0.1)
 		}
-			// TODO: Remove when targeting macOS 13 where it's fixed.
 			.buttonStyle(.automatic) // Without, it becomes disabled: https://github.com/feedback-assistant/reports/issues/250 (macOS 12.0.1)
 			.padding(8)
 			.contentShape(.rectangle)
@@ -140,10 +138,14 @@ struct ColorPickerScreen: View {
 	@State private var hslColor = ""
 	@State private var rgbColor = ""
 	@State private var lchColor = ""
+    @State private var nsSRGBColor = ""
+    @State private var uiSRGBColor = ""
 	@State private var isTextFieldFocusedHex = false
 	@State private var isTextFieldFocusedHSL = false
 	@State private var isTextFieldFocusedRGB = false
 	@State private var isTextFieldFocusedLCH = false
+    @State private var isTextFieldFocusedNSC = false
+    @State private var isTextFieldFocusedUIC = false
 	@State private var isPreventingUpdate = false
 
 	let colorPanel: NSColorPanel
@@ -153,6 +155,8 @@ struct ColorPickerScreen: View {
 			|| isTextFieldFocusedHSL
 			|| isTextFieldFocusedRGB
 			|| isTextFieldFocusedLCH
+            || isTextFieldFocusedNSC
+            || isTextFieldFocusedUIC
 	}
 
 	private var textFieldFontSize: Double { largerText ? 16 : 0 }
@@ -296,6 +300,71 @@ struct ColorPickerScreen: View {
 				.keyboardShortcut("l", modifiers: [.shift, .command])
 		}
 	}
+    
+    private var nscColorView: some View {
+        HStack {
+            NativeTextField(
+                text: $nsSRGBColor,
+                placeholder: "NSColor sRGB",
+                font: .monospacedSystemFont(ofSize: textFieldFontSize, weight: .regular),
+                isFocused: $isTextFieldFocusedNSC
+            )
+                .controlSize(.large)
+               /* .onChange(of: nsSRGBColor) {
+                    if
+                        isTextFieldFocusedNSC,
+                        !isPreventingUpdate,
+                        let newColor = NSColor(cssLCHString: $0.trimmingCharacters(in: .whitespaces))
+                    {
+                        colorPanel.color = newColor
+                    }
+                    if !isPreventingUpdate {
+                        updateColorsFromPanel(excludeNSC: true, preventUpdate: true)
+                    }
+                } */
+            Button("Copy NSC", systemImage: "doc.on.doc.fill") {
+                nsSRGBColor.copyToPasteboard()
+            }
+                .labelStyle(.iconOnly)
+                .symbolRenderingMode(.hierarchical)
+                .buttonStyle(.borderless)
+                .contentShape(.rectangle)
+                .keyboardShortcut("n", modifiers: [.shift, .command])
+        }
+    }
+    
+    private var uicColorView: some View {
+        HStack {
+            NativeTextField(
+                text: $uiSRGBColor,
+                placeholder: "UIColor sRGB",
+                font: .monospacedSystemFont(ofSize: textFieldFontSize, weight: .regular),
+                isFocused: $isTextFieldFocusedUIC
+            )
+                .controlSize(.large)
+              /*  .onChange(of: uiSRGBColor) {
+                    if
+                        isTextFieldFocusedUIC,
+                        !isPreventingUpdate,
+                        let newColor = NSColor(cssLCHString: $0.trimmingCharacters(in: .whitespaces))
+                    {
+                        colorPanel.color = newColor
+                    }
+                    if !isPreventingUpdate {
+                        updateColorsFromPanel(excludeUIC: true, preventUpdate: true)
+                    }
+                }*/
+            Button("Copy UIC", systemImage: "doc.on.doc.fill") {
+                uiSRGBColor.copyToPasteboard()
+            }
+                .labelStyle(.iconOnly)
+                .symbolRenderingMode(.hierarchical)
+                .buttonStyle(.borderless)
+                .contentShape(.rectangle)
+                .keyboardShortcut("n", modifiers: [.shift, .command])
+        }
+    }
+    
 
 	var body: some View {
 		VStack {
@@ -312,11 +381,19 @@ struct ColorPickerScreen: View {
 			if shownColorFormats.contains(.lch) {
 				lchColorView
 			}
+            
+            if shownColorFormats.contains(.nsSRGB) {
+                nscColorView
+            }
+            if shownColorFormats.contains(.uiSRGB) {
+                uicColorView
+            }
+             
 		}
 			.padding(9)
 			// 244 makes `HSL` always fit in the text field.
 			.frame(minWidth: 244, maxWidth: .infinity)
-			.task {
+			.onAppear {
 				updateColorsFromPanel()
 			}
 			.onChange(of: uppercaseHexColor) { _ in
@@ -343,6 +420,8 @@ struct ColorPickerScreen: View {
 		excludeHSL: Bool = false,
 		excludeRGB: Bool = false,
 		excludeLCH: Bool = false,
+        excludeNSC: Bool = false,
+        excludeUIC: Bool = false,
 		preventUpdate: Bool = false
 	) {
 		if preventUpdate {
@@ -366,6 +445,14 @@ struct ColorPickerScreen: View {
 		if !excludeLCH {
 			lchColor = color.lchColorString
 		}
+        
+        if !excludeNSC {
+            nsSRGBColor = color.nsColorString
+        }
+        
+        if !excludeUIC {
+            uiSRGBColor = color.uiColorString
+        }
 
 		if preventUpdate {
 			DispatchQueue.main.async {

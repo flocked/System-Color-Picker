@@ -15,7 +15,7 @@ extension Defaults.Keys {
 	static let uppercaseHexColor = Key<Bool>("uppercaseHexColor", default: false)
 	static let hashPrefixInHexColor = Key<Bool>("hashPrefixInHexColor", default: false)
 	static let legacyColorSyntax = Key<Bool>("legacyColorSyntax", default: false)
-	static let shownColorFormats = Key<Set<ColorFormat>>("shownColorFormats", default: [.hex, .hsl, .rgb, .lch])
+    static let shownColorFormats = Key<Set<ColorFormat>>("shownColorFormats", default: [.hex, .hsl, .rgb, .lch, .nsSRGB, .uiSRGB])
 	static let largerText = Key<Bool>("largerText", default: false)
 	static let copyColorAfterPicking = Key<Bool>("copyColorAfterPicking", default: false)
 
@@ -74,6 +74,8 @@ enum ColorFormat: String, CaseIterable, Defaults.Serializable {
 	case hsl
 	case rgb
 	case lch
+    case nsSRGB
+    case uiSRGB
 
 	var title: String {
 		switch self {
@@ -85,6 +87,10 @@ enum ColorFormat: String, CaseIterable, Defaults.Serializable {
 			return "RGB"
 		case .lch:
 			return "LCH"
+        case .nsSRGB:
+            return "NSColor sRGB"
+        case .uiSRGB:
+            return "UIColor sRGB"
 		}
 	}
 }
@@ -99,6 +105,7 @@ enum CodableColorFormat: String {
 	case hsl
 	case rgb
 	case lch
+    case nsc
 }
 
 extension CodableColorFormat: Defaults.CodableType {

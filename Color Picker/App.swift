@@ -46,6 +46,14 @@ struct AppMain: App {
 						appState.colorPanel.color.lchColorString.copyToPasteboard()
 					}
 						.keyboardShortcut("l", modifiers: [.shift, .command])
+                    Button("Copy as NSColor sRGB") {
+                        appState.colorPanel.color.nsColorString.copyToPasteboard()
+                    }
+                        .keyboardShortcut("n", modifiers: [.shift, .command])
+                    Button("Copy as UIColor sRGB") {
+                        appState.colorPanel.color.uiColorString.copyToPasteboard()
+                    }
+                        .keyboardShortcut("u", modifiers: [.shift, .command])
 					Button("Paste") {
 						appState.pasteColor()
 					}
@@ -56,8 +64,8 @@ struct AppMain: App {
 				CommandGroup(replacing: .help) {
 					Link("What is LCH color?", destination: "https://lea.verou.me/2020/04/lch-colors-in-css-what-why-and-how/")
 					Link("FAQ", destination: "https://github.com/sindresorhus/System-Color-Picker#faq")
-					Link("Website", destination: "https://sindresorhus.com/system-color-picker")
 					Divider()
+					Link("Website", destination: "https://sindresorhus.com/system-color-picker")
 					Link("Rate on the App Store", destination: "macappstore://apps.apple.com/app/id1545870783?action=write-review")
 					Link("More Apps by Me", destination: "macappstore://apps.apple.com/developer/id328077650")
 					Divider()
@@ -119,11 +127,7 @@ struct AppMain: App {
 
 @MainActor
 private final class AppDelegate: NSObject, NSApplicationDelegate {
-	func applicationDidFinishLaunching(_ notification: Notification) {
-		if #available(macOS 13, *) {
-			SSApp.swiftUIMainWindow?.close()
-		}
-	}
+	func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
 	// Does not work on macOS 12.0.1 because of `WindowGroup`: https://github.com/feedback-assistant/reports/issues/246
 	// This is only run when the app is started when it's already running.

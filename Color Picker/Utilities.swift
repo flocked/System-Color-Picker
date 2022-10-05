@@ -4,6 +4,7 @@ import Carbon
 import StoreKit
 import Defaults
 import Regex
+import AppKit
 
 #if !APP_EXTENSION
 import Sentry
@@ -27,7 +28,6 @@ extension NSColor {
 
 			return self
 		}
-
 		return color
 	}
 
@@ -39,9 +39,19 @@ extension NSColor {
 			)
 		)
 	}
+    
+    var uiColorString: String {
+        let color = self.toSRGB
+      return  "UIColor(red: \(color.redComponent.description), green: \(color.greenComponent.description), blue: \(color.blueComponent.description), alpha: \(color.alphaComponent.description))"
+    }
+    
+    var nsColorString: String {
+        let color = self.toSRGB
+      return  "NSColor(red: \(color.redComponent.description), green: \(color.greenComponent.description), blue: \(color.blueComponent.description), alpha: \(color.alphaComponent.description))"
+    }
 
 	var hslColorString: String {
-		toSRGB.format(Defaults[.legacyColorSyntax] ? .cssHSLLegacy : .cssHSL)
+        return toSRGB.format(Defaults[.legacyColorSyntax] ? .cssHSLLegacy : .cssHSL)
 	}
 
 	var rgbColorString: String {
@@ -66,6 +76,10 @@ extension NSColor {
 			return rgbColorString
 		case .lch:
 			return lchColorString
+        case .nsSRGB:
+            return nsColorString
+        case .uiSRGB:
+            return uiColorString
 		}
 	}
 }
@@ -169,7 +183,7 @@ enum SSApp {
 			"metadata": metadata
 		]
 
-		URL("https://sindresorhus.com/feedback").addingDictionaryAsQuery(query).open()
+		URL("https://sindresorhus.com/feedback/").addingDictionaryAsQuery(query).open()
 	}
 
 	static var isDockIconVisible: Bool {
@@ -406,7 +420,7 @@ final class LocalEventMonitor: ObservableObject {
 	@discardableResult
 	func start() -> Self {
 		monitor = NSEvent.addLocalMonitorForEvents(matching: events) { [weak self] in
-			guard let self else {
+			guard let self = self else {
 				return $0
 			}
 
@@ -418,7 +432,7 @@ final class LocalEventMonitor: ObservableObject {
 	}
 
 	func stop() {
-		guard let monitor else {
+		guard let monitor = monitor else {
 			return
 		}
 
@@ -447,7 +461,7 @@ final class GlobalEventMonitor {
 	}
 
 	func stop() {
-		guard let monitor else {
+		guard let monitor = monitor else {
 			return
 		}
 
@@ -469,7 +483,7 @@ extension NSView {
 	}
 
 	func constrainEdgesToSuperview() {
-		guard let superview else {
+		guard let superview = superview else {
 			assertionFailure("There is no superview for this view")
 			return
 		}
@@ -1043,7 +1057,7 @@ struct NativeTextField: NSViewRepresentable {
 
 			// This is required so that it correctly loses focus when the user clicks in the menu bar or uses the dropper from a keyboard shortcut.
 			globalEventMonitor = GlobalEventMonitor(events: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-				guard let self else {
+				guard let self = self else {
 					return
 				}
 
@@ -1052,7 +1066,7 @@ struct NativeTextField: NSViewRepresentable {
 
 			// Cannot be `.leftMouseUp` as the color wheel swallows it.
 			localEventMonitor = LocalEventMonitor(events: [.leftMouseDown, .rightMouseDown, .keyDown]) { [weak self] event in
-				guard let self else {
+				guard let self = self else {
 					return nil
 				}
 
@@ -1144,7 +1158,7 @@ struct NativeTextField: NSViewRepresentable {
 		nsView.stringValue = text
 		nsView.placeholderString = placeholder
 
-		if let font {
+		if let font = font {
 			nsView.font = font
 		}
 
@@ -1233,13 +1247,13 @@ extension NSAlert {
 		self.messageText = title
 		self.alertStyle = style
 
-		if let message {
+		if let message = message {
 			self.informativeText = message
 		}
 
 		addButtons(withTitles: buttonTitles)
 
-		if let defaultButtonIndex {
+		if let defaultButtonIndex = defaultButtonIndex {
 			self.defaultButtonIndex = defaultButtonIndex
 		}
 	}
@@ -1249,7 +1263,7 @@ extension NSAlert {
 	*/
 	@discardableResult
 	func runModal(for window: NSWindow? = nil) -> NSApplication.ModalResponse {
-		guard let window else {
+		guard let window = window else {
 			return runModal()
 		}
 
@@ -1319,12 +1333,12 @@ extension ControlActionClosureProtocol {
 			return trampoline.action
 		}
 		set {
-			guard let newValue else {
+			guard let action = newValue else {
 				objc_setAssociatedObject(self, &controlActionClosureProtocolAssociatedObjectKey, nil, .OBJC_ASSOCIATION_RETAIN)
 				return
 			}
 
-			let trampoline = ActionTrampoline(action: newValue)
+			let trampoline = ActionTrampoline(action: action)
 			target = trampoline
 			self.action = #selector(ActionTrampoline.handleAction)
 			objc_setAssociatedObject(self, &controlActionClosureProtocolAssociatedObjectKey, trampoline, .OBJC_ASSOCIATION_RETAIN)
@@ -1374,7 +1388,7 @@ final class CallbackMenuItem: NSMenuItem {
 		self.isEnabled = isEnabled
 		self.isHidden = isHidden
 
-		if let keyModifiers {
+		if let keyModifiers = keyModifiers {
 			self.keyEquivalentModifierMask = keyModifiers
 		}
 	}
@@ -1773,7 +1787,7 @@ extension NSPasteboard {
 			if onlyWhileAppIsActive {
 				SSPublishers.appIsActive
 					.sink { [weak self] isActive in
-						guard let self else {
+						guard let self = self else {
 							return
 						}
 
@@ -1946,11 +1960,11 @@ struct EnumPicker<Enum, Label, Content>: View where Enum: CaseIterable & Equatab
 }
 
 extension EnumPicker where Label == Text {
-	init(
-		_ title: some StringProtocol,
+	init<S>(
+		_ title: S,
 		enumBinding: Binding<Enum>,
 		@ViewBuilder content: @escaping (Enum, Bool) -> Content
-	) {
+	) where S: StringProtocol {
 		self.enumBinding = enumBinding
 		self.content = content
 		self.label = { Text(title) }
@@ -2483,7 +2497,7 @@ extension Defaults {
 	}
 	```
 	*/
-	struct MultiCheckboxPicker<Data: RandomAccessCollection, ElementLabel: View>: View where Data.Element: Hashable & Identifiable & Defaults.Serializable {
+	struct MultiCheckboxPicker<Data: RandomAccessCollection, ElementLabel: View, Key: Defaults.Key<Set<Data.Element>>>: View where Data.Element: Hashable & Identifiable {
 		typealias Element = Data.Element
 		typealias Selection = Set<Element>
 
@@ -2493,7 +2507,7 @@ extension Defaults {
 		private var elementLabel: (Element) -> ElementLabel
 
 		init(
-			key: Defaults.Key<Set<Data.Element>>,
+			key: Key,
 			data: Data,
 			@ViewBuilder elementLabel: @escaping (Element) -> ElementLabel
 		) {
@@ -2542,7 +2556,7 @@ extension NSImage {
 		Self(size: size, flipped: false) { bounds in
 			NSGraphicsContext.current?.imageInterpolation = .high
 
-			guard let cornerRadius else {
+			guard let cornerRadius = cornerRadius else {
 				color.drawSwatch(in: bounds)
 				return true
 			}
@@ -2563,7 +2577,7 @@ extension NSImage {
 
 			if
 				borderWidth > 0,
-				let borderColor
+				let borderColor = borderColor
 			{
 				borderColor.setStroke()
 				bezierPath.lineWidth = borderWidth
@@ -2699,6 +2713,24 @@ extension NSImage {
 #endif
 
 
+// TODO: Remove when targeting macOS 12.
+extension View {
+	func overlay2<Overlay: View>(
+		alignment: Alignment = .center,
+		@ViewBuilder content: () -> Overlay
+	) -> some View {
+		overlay(ZStack(content: content), alignment: alignment)
+	}
+
+	func background2<V: View>(
+		alignment: Alignment = .center,
+		@ViewBuilder content: () -> V
+	) -> some View {
+		background(ZStack(content: content), alignment: alignment)
+	}
+}
+
+
 extension Shape where Self == Rectangle {
 	static var rectangle: Self { .init() }
 }
@@ -2734,12 +2766,12 @@ extension View {
 	/**
 	This allows multiple alerts on a single view, which `.alert()` doesn't.
 	*/
-	func alert2(
+	func alert2<A, M>(
 		_ title: Text,
 		isPresented: Binding<Bool>,
-		@ViewBuilder actions: () -> some View,
-		@ViewBuilder message: () -> some View
-	) -> some View {
+		@ViewBuilder actions: () -> A,
+		@ViewBuilder message: () -> M
+	) -> some View where A: View, M: View {
 		background(
 			EmptyView()
 				.alert(
@@ -2754,12 +2786,12 @@ extension View {
 	/**
 	This allows multiple alerts on a single view, which `.alert()` doesn't.
 	*/
-	func alert2(
+	func alert2<A, M>(
 		_ title: String,
 		isPresented: Binding<Bool>,
-		@ViewBuilder actions: () -> some View,
-		@ViewBuilder message: () -> some View
-	) -> some View {
+		@ViewBuilder actions: () -> A,
+		@ViewBuilder message: () -> M
+	) -> some View where A: View, M: View {
 		alert2(
 			Text(title),
 			isPresented: isPresented,
@@ -2771,19 +2803,19 @@ extension View {
 	/**
 	This allows multiple alerts on a single view, which `.alert()` doesn't.
 	*/
-	func alert2(
+	func alert2<A>(
 		_ title: Text,
 		message: String? = nil,
 		isPresented: Binding<Bool>,
-		@ViewBuilder actions: () -> some View
-	) -> some View {
+		@ViewBuilder actions: () -> A
+	) -> some View where A: View {
 		// swiftlint:disable:next trailing_closure
 		alert2(
 			title,
 			isPresented: isPresented,
 			actions: actions,
 			message: {
-				if let message {
+				if let message = message {
 					Text(message)
 				}
 			}
@@ -2794,19 +2826,19 @@ extension View {
 	/**
 	This allows multiple alerts on a single view, which `.alert()` doesn't.
 	*/
-	func alert2(
+	func alert2<A>(
 		_ title: String,
 		message: String? = nil,
 		isPresented: Binding<Bool>,
-		@ViewBuilder actions: () -> some View
-	) -> some View {
+		@ViewBuilder actions: () -> A
+	) -> some View where A: View {
 		// swiftlint:disable:next trailing_closure
 		alert2(
 			title,
 			isPresented: isPresented,
 			actions: actions,
 			message: {
-				if let message {
+				if let message = message {
 					Text(message)
 				}
 			}
@@ -2850,7 +2882,7 @@ extension View {
 }
 
 
-extension Task<Never, Never> {
+extension Task where Success == Never, Failure == Never {
 	public static func sleep(seconds: TimeInterval) async throws {
 	   try await sleep(nanoseconds: UInt64(seconds * Double(NSEC_PER_SEC)))
 	}
@@ -2927,7 +2959,7 @@ extension NSError {
 		var userInfo = userInfo
 		userInfo[NSLocalizedDescriptionKey] = description
 
-		if let recoverySuggestion {
+		if let recoverySuggestion = recoverySuggestion {
 			userInfo[NSLocalizedRecoverySuggestionErrorKey] = recoverySuggestion
 		}
 
@@ -2940,7 +2972,7 @@ extension NSError {
 }
 
 
-extension Button<Label<Text, Image>> {
+extension Button where Label == SwiftUI.Label<Text, Image> {
 	init(
 		_ title: String,
 		systemImage: String,
