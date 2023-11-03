@@ -20,16 +20,11 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.developer-tools</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
-	<key>LSUIElement</key>
-	<true/>
 	<key>MDItemKeywords</key>
 	<string>color,picker,system,pick,colour,colors,colours,sampler</string>
-	<key>NSUserActivityTypes</key>
-	<array>
-		<string>GetRandomColorIntent</string>
-		<string>SampleColorIntent</string>
-	</array>
 </dict>
 </plist>

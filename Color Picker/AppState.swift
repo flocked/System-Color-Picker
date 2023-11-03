@@ -1,7 +1,4 @@
 import SwiftUI
-import Combine
-import Defaults
-import Sentry
 
 @MainActor
 final class AppState: ObservableObject {
@@ -13,6 +10,7 @@ final class AppState: ObservableObject {
 		let colorPanel = ColorPanel()
 		colorPanel.titleVisibility = .hidden
 		colorPanel.hidesOnDeactivate = false
+		colorPanel.becomesKeyOnlyIfNeeded = false
 		colorPanel.isFloatingPanel = false
 		colorPanel.isRestorable = false
 		colorPanel.styleMask.remove(.utilityWindow)
@@ -20,9 +18,12 @@ final class AppState: ObservableObject {
 		colorPanel.standardWindowButton(.zoomButton)?.isHidden = true
 		colorPanel.tabbingMode = .disallowed
 		colorPanel.collectionBehavior = [
-			.moveToActiveSpace,
+			.canJoinAllSpaces,
 			.fullScreenAuxiliary
+			// We cannot enable tiling as then it doesn't show up in fullscreen spaces. (macOS 12.5)
+//			.fullScreenAllowsTiling
 		]
+		colorPanel.center()
 		colorPanel.makeMain()
 
 		let view = ColorPickerScreen(colorPanel: colorPanel)
@@ -60,26 +61,22 @@ final class AppState: ObservableObject {
 		menu.addSeparator()
 
 		if let colors = Defaults[.recentlyPickedColors].reversed().nilIfEmpty {
-			menu.addHeader("Recently Picked Colors")
+			menu.addHeader("Recently Picked")
 
 			for color in colors {
 				let menuItem = menu.addCallbackItem(color.stringRepresentation) {
 					color.stringRepresentation.copyToPasteboard()
 				}
 
-				menuItem.image = color.swatchImage
+				menuItem.image = color.swatchImage(size: 20)
 			}
 		}
+
+		addPalettes(menu)
 
 		menu.addSeparator()
 
 		menu.addSettingsItem()
-
-		menu.addSeparator()
-
-		menu.addCallbackItem("Send Feedback…") {
-			SSApp.openSendFeedbackPage()
-		}
 
 		menu.addSeparator()
 
@@ -128,23 +125,23 @@ final class AppState: ObservableObject {
 		}
 	}
 
-	init() {
-		setUpConfig()
-
+	private init() {
 		DispatchQueue.main.async { [self] in
 			didLaunch()
 		}
 	}
 
 	private func didLaunch() {
-		fixStuff()
 		setUpEvents()
 		handleMenuBarIcon()
 		showWelcomeScreenIfNeeded()
 		requestReview()
 
 		if Defaults[.showInMenuBar] {
+			SSApp.isDockIconVisible = false
 			colorPanel.close()
+		} else {
+			colorPanel.makeKeyAndOrderFront(nil)
 		}
 
 		#if DEBUG
@@ -152,26 +149,8 @@ final class AppState: ObservableObject {
 		#endif
 	}
 
-	private func setUpConfig() {
-		#if !DEBUG
-		SentrySDK.start {
-			$0.dsn = "https://e89cb93d693444ee8829f521ab75025a@o844094.ingest.sentry.io/6139060"
-			$0.enableSwizzling = false
-		}
-		#endif
-	}
-
-	private func fixStuff() {
-		// Make the invisible native SwitUI window not block access to the desktop. (macOS 12.0)
-		// https://github.com/feedback-assistant/reports/issues/253
-		SSApp.swiftUIMainWindow?.ignoresMouseEvents = true
-
-		// Make the invisible native SwiftUI window not show up in mission control when in menu bar mode. (macOS 11.6)
-		SSApp.swiftUIMainWindow?.collectionBehavior = .stationary
-	}
-
 	private func requestReview() {
-		SSApp.requestReviewAfterBeingCalledThisManyTimes([10, 100, 200, 1000])
+		SSApp.requestReviewAfterBeingCalledThisManyTimes([8, 100, 200, 1000])
 	}
 
 	private func addToRecentlyPickedColor(_ color: NSColor) {
@@ -210,6 +189,10 @@ final class AppState: ObservableObject {
 			if Defaults[.copyColorAfterPicking] {
 				color.stringRepresentation.copyToPasteboard()
 			}
+
+			if NSEvent.modifiers == .shift {
+				pickColor()
+			}
 		}
 	}
 
@@ -223,5 +206,45 @@ final class AppState: ObservableObject {
 
 	func handleAppReopen() {
 		handleMenuBarIcon()
+	}
+
+	private func addPalettes(_ menu: NSMenu) {
+		func createColorListMenu(menu: NSMenu, colorList: NSColorList) {
+			for (key, color) in colorList.keysAndColors {
+				let menuItem = menu.addCallbackItem(key) {
+					color.stringRepresentation.copyToPasteboard()
+				}
+
+				// TODO: Cache the swatch image.
+				menuItem.image = color.swatchImage(size: Constants.swatchImageSize)
+			}
+		}
+
+		if
+			let colorListName = Defaults[.stickyPaletteName],
+			let colorList = NSColorList(named: colorListName)
+		{
+			menu.addHeader(colorList.name ?? "<Unnamed>")
+			createColorListMenu(menu: menu, colorList: colorList)
+		}
+
+		guard let colorLists = NSColorList.all.withoutStickyPalette().nilIfEmpty else {
+			return
+		}
+
+		menu.addHeader("Palettes")
+
+		for colorList in colorLists {
+			guard let colorListName = colorList.name else {
+				continue
+			}
+
+			menu.addItem(colorListName)
+				.withSubmenuLazy {
+					let menu = SSMenu()
+					createColorListMenu(menu: menu, colorList: colorList)
+					return menu
+				}
+		}
 	}
 }

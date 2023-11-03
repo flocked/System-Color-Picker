@@ -6,7 +6,11 @@ extension AppState {
 			return
 		}
 
-		NSApp.activate(ignoringOtherApps: true)
+		if NSWorkspace.shared.accessibilityDisplayShouldDifferentiateWithoutColor {
+			Defaults[.showAccessibilityColorName] = true
+		}
+
+		SSApp.activateIfAccessory()
 
 		NSAlert.showModal(
 			title: "Welcome to Color Picker!",
