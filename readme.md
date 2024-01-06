@@ -11,6 +11,8 @@
 	<br>
 </div>
 
+**Updated to include `NSColor`, `UIColor` and `SwiftUI.Color`**
+
 The macOS color picker as an app with lots of extra features.
 
 ## Download
