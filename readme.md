@@ -1,3 +1,5 @@
+**Updated to include `NSColor`, `UIColor` and `SwiftUI.Color`**
+
 <div align="center">
 	<a href="https://sindresorhus.com/system-color-picker">
 		<img src="Stuff/AppIcon-readme.png" width="200" height="200">
@@ -10,8 +12,6 @@
 	<br>
 	<br>
 </div>
-
-**Updated to include `NSColor`, `UIColor` and `SwiftUI.Color`**
 
 The macOS color picker as an app with lots of extra features.
 
